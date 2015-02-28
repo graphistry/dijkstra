@@ -1,42 +1,51 @@
-var FibonacciHeap = require('fibonacci-heap').FibonacciHeap,
-    deepEqual = require('deep-equal'),
-    stringify = require('json-stable-stringify');
+var Heap = require('heap');
+
 
 /**
  * @param {Graph} graph some graph.
- * @param {Object} source node to search from.
+ * @param {uint} source node to search from.
+ * @return {Uint32Array} backlinks
  */
 function dijkstra(graph, source) {
-  var queue = new FibonacciHeap();
-  var dist = {},
-      prev = {};
-  dist[stringify(source)] = 0;
-  graph.vertices.forEach(function(vertex) {
-    var key = stringify(vertex);
-    if (!deepEqual(vertex, source)) {
-      dist[key] = Infinity;
-      prev[key] = null;
+
+
+    var MAX = 10000000;
+    if (MAX <= graph.vertices.length) {
+        throw new Error('Graph too big for dijkstra');
     }
 
-    queue.insert({ value: vertex, priority: dist[key] });
-  });
+    var queue = new Heap(function (a, b) { return a.priority - b.priority; });
+    var dist = new Uint32Array(graph.vertices.length);
+    var prev = new Int32Array(graph.vertices.length);
 
-  while (queue.trees() !== 0) {
-    var next = queue.deleteMin().value;
-    var nextKey = stringify(next);
-    var neighbors = graph.neighbors(next);
-    neighbors.forEach(function(neighbor) {
-      var neighborKey = stringify(neighbor);
-      var alt = dist[nextKey] + graph.distance(next, neighbor);
-      if (alt < dist[neighborKey]) {
-        dist[neighborKey] = alt;
-        prev[neighborKey] = next;
-        queue.update({ value: neighbor, priority: alt });
-      }
+    var items = [];
+
+    dist[source] = 0;
+    graph.vertices.forEach(function(vertex) {
+        if (vertex !== source) {
+            dist[vertex] = MAX;
+            prev[vertex] = -1;
+        }
+        items[vertex] = { value: vertex, priority: source == vertex ? 0 : dist[vertex] };
+        queue.push(items[vertex]);
     });
-  }
 
-  return prev;
+    while (!queue.empty()) {
+        var next = queue.pop().value;
+        var dists = graph.vertexToEdges[next];
+        graph.vertexToNeighbors[next].forEach(function(neighbor) {
+            var alt = dist[next] + dists[neighbor];
+            if (alt < dist[neighbor]) {
+                dist[neighbor] = alt;
+                prev[neighbor] = next;
+                var item = items[neighbor];
+                item.priority = alt;
+                queue.updateItem(item);
+            }
+        });
+    }
+
+    return prev;
 }
 module.exports.dijkstra = dijkstra;
 
@@ -45,40 +54,31 @@ module.exports.dijkstra = dijkstra;
  */
 function Graph() {
   this.vertexToEdges = {};
+  this.vertexToNeighbors = {};
+  this.vertices = [];
 }
 module.exports.Graph = Graph;
 
 Graph.prototype = {
-  vertexToEdges: null,
 
-  get vertices() {
-    return Object.keys(this.vertexToEdges).map(function(vertex) {
-      return JSON.parse(vertex);
-    });
-  },
+    addVertex: function(vertex) {
+        this.vertexToEdges[vertex] = {};
+        this.vertexToNeighbors[vertex] = [];
+        this.vertices.push(vertex);
+    },
 
-  addVertex: function(vertex) {
-    var key = stringify(vertex);
-    this.vertexToEdges[key] = {};
-  },
+    addEdge: function(u, v, distance) {
+        this.vertexToEdges[u][v] = distance;
+        this.vertexToEdges[v][u] = distance;
+        this.vertexToNeighbors[u].push(v);
+        this.vertexToNeighbors[v].push(u);
+    },
 
-  addEdge: function(u, v, distance) {
-    var ukey = stringify(u);
-    var vkey = stringify(v);
-    this.vertexToEdges[ukey][vkey] = distance;
-    this.vertexToEdges[vkey][ukey] = distance;
-  },
+    removeEdge: function (u, v) {
+        delete this.vertexToEdges[u][v];
+        delete this.vertexToEdges[v][u];
+        this.vertexToNeighbors[u] = this.vertexToNeighbors[u].filter(function (i) { return i !== v; });
+        this.vertexToNeighbors[v] = this.vertexToNeighbors[v].filter(function (i) { return i !== u; });
+    }
 
-  distance: function(u, v) {
-    var ukey = stringify(u);
-    var vkey = stringify(v);
-    return this.vertexToEdges[ukey][vkey];
-  },
-
-  neighbors: function(vertex) {
-    var key = stringify(vertex);
-    return Object.keys(this.vertexToEdges[key]).map(function(neighbor) {
-      return JSON.parse(neighbor);
-    });
-  }
 };
