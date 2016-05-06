@@ -1,5 +1,5 @@
 {
-  "name": "dijkstra",
+  "name": "@graphistry/dijkstra",
   "version": "0.0.1",
   "description": "Implementation of dijkstra's algorithm",
   "main": "index.js",
