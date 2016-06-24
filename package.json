@@ -1,12 +1,10 @@
 {
-  "name": "dijkstra",
-  "version": "0.0.1",
+  "name": "@graphistry/dijkstra",
+  "version": "2.0.0",
   "description": "Implementation of dijkstra's algorithm",
   "main": "index.js",
   "dependencies": {
-    "deep-equal": "0.1.2",
-    "fibonacci-heap": "0.0.1",
-    "json-stable-stringify": "0.1.1"
+    "heap": "~0.2.6"
   },
   "devDependencies": {
     "mocha": "1.16.2"
